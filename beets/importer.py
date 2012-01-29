@@ -158,16 +158,30 @@ def _infer_album_fields(task):
 
     if task.choice_flag == action.ASIS:
         # Taking metadata "as-is". Guess whether this album is VA.
-        plur_artist, freq = plurality([i.artist for i in task.items])
-        if freq == len(task.items) or (freq > 1 and
-                float(freq) / len(task.items) >= SINGLE_ARTIST_THRESH):
-            # Single-artist album.
-            changes['albumartist'] = plur_artist
-            changes['comp'] = False
+
+        # Check for albumartist field:
+        for item in task.items:
+            if item is not None:
+                first_item = item
+                break
+            else:
+                assert False, "all items are None"
+        if first_item.mb_albumartistid:
+            changes['mb_albumartistid'] = first_item.mb_albumartistid
+        if first_item.albumartist:
+            changes['albumartist'] = first_item.albumartist
         else:
-            # VA.
-            changes['albumartist'] = VARIOUS_ARTISTS
-            changes['comp'] = True
+            # Guess if the album is not VA:
+            plur_artist, freq = plurality([i.artist for i in task.items])
+            if freq == len(task.items) or (freq > 1 and
+                    float(freq) / len(task.items) >= SINGLE_ARTIST_THRESH):
+                # Single-artist album.
+                changes['albumartist'] = plur_artist
+                changes['comp'] = False
+            else:
+                # VA.
+                changes['albumartist'] = VARIOUS_ARTISTS
+                changes['comp'] = True
 
     elif task.choice_flag == action.APPLY:
         # Applying autotagged metadata. Just get AA from the first
@@ -176,8 +190,8 @@ def _infer_album_fields(task):
             if item is not None:
                 first_item = item
                 break
-        else:
-            assert False, "all items are None"
+            else:
+                assert False, "all items are None"
         if not first_item.albumartist:
             changes['albumartist'] = first_item.artist
         if not first_item.mb_albumartistid:
